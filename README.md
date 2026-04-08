@@ -2,7 +2,7 @@
 
 A mobile-first React + Vite app that uses the device camera or photo upload to estimate calories from a single plate of food. The frontend is designed for Cloudflare Pages, and the backend analysis endpoint runs as a Pages Function backed by Workers AI.
 
-The current photo-analysis model is `@cf/meta/llama-3.2-11b-vision-instruct`.
+The app prefers `@cf/meta/llama-3.2-11b-vision-instruct` for lower cost, and falls back to `@cf/meta/llama-4-scout-17b-16e-instruct` until the Cloudflare account has completed Meta's one-time license acceptance for the vision model.
 
 ## What ships in this MVP
 
@@ -57,7 +57,7 @@ Important: if you want Git integration, do not create a Direct Upload Pages proj
 5. In the Cloudflare dashboard, add a Workers AI binding named `AI` for the Pages project.
 6. Deploy again and verify that `POST /api/analyze` can access the binding.
 
-If this Cloudflare account has never used `@cf/meta/llama-3.2-11b-vision-instruct` before, Meta requires a one-time license acceptance for that model before normal requests succeed.
+If this Cloudflare account has never used `@cf/meta/llama-3.2-11b-vision-instruct` before, Meta requires a one-time license acceptance for that model before normal requests succeed. Until then, the function automatically falls back to Scout so analysis still works.
 
 Cloudflare Pages must serve the site over HTTPS so mobile camera access works outside localhost.
 

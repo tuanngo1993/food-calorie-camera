@@ -6,7 +6,8 @@ import {
   normalizeAnalysisResponse,
 } from "../../shared/analysis";
 
-const MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
+const PRIMARY_MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
+const FALLBACK_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
 interface Env {
@@ -64,37 +65,7 @@ export async function onRequestPost(context: PagesContext) {
 
     const buffer = await image.arrayBuffer();
     const imageDataUrl = `data:${image.type};base64,${arrayBufferToBase64(buffer)}`;
-    const aiResponse = await context.env.AI.run(MODEL, {
-      messages: [
-        {
-          role: "system",
-          content:
-            "You estimate calories from a single plate or bowl of food. Be conservative, use only visible evidence, and never claim precision. If the image is blurry, dark, not food, or too ambiguous, set shouldRetry to true with a helpful retryReason. Return only JSON that matches the supplied schema.",
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text:
-                "Estimate the visible food items and total calories in this image. Focus on one meal only. Use a short summary.",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: imageDataUrl,
-              },
-            },
-          ],
-        },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: analysisResponseSchema,
-      },
-      max_tokens: 420,
-      temperature: 0.2,
-    });
+    const aiResponse = await runAnalysis(context.env.AI, imageDataUrl);
 
     const normalized = normalizeAnalysisResponse(aiResponse);
 
@@ -105,6 +76,8 @@ export async function onRequestPost(context: PagesContext) {
       200,
     );
   } catch (error) {
+    console.error("Workers AI analyze failed", error);
+
     if (error instanceof RetryableAnalysisError) {
       return json<AnalysisApiError>({ error: error.message, retryable: true }, 422);
     }
@@ -146,6 +119,10 @@ function corsHeaders() {
 }
 
 function normalizeServerError(message: string) {
+  if (message.includes("must submit the prompt 'agree'")) {
+    return "This Cloudflare account must accept the Meta license for the cheaper vision model before it can be used directly.";
+  }
+
   if (
     message.toLowerCase().includes("reading 'run'") ||
     message.toLowerCase().includes("reading \"run\"") ||
@@ -176,4 +153,57 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
   }
 
   return btoa(binary);
+}
+
+async function runAnalysis(ai: Env["AI"], imageDataUrl: string) {
+  try {
+    return await ai.run(PRIMARY_MODEL, buildModelInput(imageDataUrl));
+  } catch (error) {
+    if (shouldFallbackToScout(error)) {
+      console.warn(
+        "Primary Workers AI model requires one-time license acceptance; falling back to Scout.",
+      );
+      return ai.run(FALLBACK_MODEL, buildModelInput(imageDataUrl));
+    }
+
+    throw error;
+  }
+}
+
+function buildModelInput(imageDataUrl: string) {
+  return {
+    messages: [
+      {
+        role: "system",
+        content:
+          "You estimate calories from a single plate or bowl of food. Be conservative, use only visible evidence, and never claim precision. If the image is blurry, dark, not food, or too ambiguous, set shouldRetry to true with a helpful retryReason. Return only JSON that matches the supplied schema.",
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text:
+              "Estimate the visible food items and total calories in this image. Focus on one meal only. Use a short summary.",
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: imageDataUrl,
+            },
+          },
+        ],
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: analysisResponseSchema,
+    },
+    max_tokens: 420,
+    temperature: 0.2,
+  };
+}
+
+function shouldFallbackToScout(error: unknown) {
+  return error instanceof Error && error.message.includes("must submit the prompt 'agree'");
 }
