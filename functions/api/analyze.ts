@@ -6,7 +6,7 @@ import {
   normalizeAnalysisResponse,
 } from "../../shared/analysis";
 
-const MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
+const MODEL = "@cf/meta/llama-3.2-11b-vision-instruct";
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
 interface Env {
