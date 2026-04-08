@@ -29,6 +29,16 @@ export function onRequestOptions() {
 
 export async function onRequestPost(context: PagesContext) {
   try {
+    if (!context.env.AI || typeof context.env.AI.run !== "function") {
+      return json<AnalysisApiError>(
+        {
+          error:
+            "Workers AI is not configured for this Pages project yet. Add an AI binding named 'AI' and redeploy.",
+        },
+        503,
+      );
+    }
+
     const formData = await context.request.formData();
     const image = formData.get("image");
 
@@ -136,6 +146,14 @@ function corsHeaders() {
 }
 
 function normalizeServerError(message: string) {
+  if (
+    message.toLowerCase().includes("reading 'run'") ||
+    message.toLowerCase().includes("reading \"run\"") ||
+    message.toLowerCase().includes("undefined")
+  ) {
+    return "Workers AI is not configured yet. Add an AI binding named 'AI' in Cloudflare Pages and redeploy.";
+  }
+
   if (message.toLowerCase().includes("binding")) {
     return "Workers AI is not configured yet. Add an AI binding named 'AI' in Cloudflare Pages.";
   }
