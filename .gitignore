@@ -1,0 +1,9 @@
+node_modules
+.pnpm-store
+dist
+.wrangler
+.DS_Store
+.dev.vars
+.env
+.env.local
+coverage
