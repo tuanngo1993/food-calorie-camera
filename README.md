@@ -42,13 +42,18 @@ pnpm build
 
 ## Cloudflare Pages deployment
 
-1. Create a Cloudflare Pages project by importing the GitHub repo.
+Important: if you want Git integration, do not create a Direct Upload Pages project first. Cloudflare's current docs say Git integration cannot be added to an existing Pages app later.
+
+1. In the Cloudflare dashboard, go to Workers & Pages.
+2. Select `Create application` -> `Pages` -> `Import an existing Git repository`.
+3. Choose `tuanngo1993/food-calorie-camera`.
 2. Use these build settings:
    - Build command: `pnpm build`
    - Build output directory: `dist`
    - Production branch: `main`
-3. In the Cloudflare dashboard, add a Workers AI binding named `AI` for the Pages project.
-4. Deploy and verify that `POST /api/analyze` can access the binding.
+4. Complete the first deployment from the dashboard.
+5. In the Cloudflare dashboard, add a Workers AI binding named `AI` for the Pages project.
+6. Deploy again and verify that `POST /api/analyze` can access the binding.
 
 Cloudflare Pages must serve the site over HTTPS so mobile camera access works outside localhost.
 
